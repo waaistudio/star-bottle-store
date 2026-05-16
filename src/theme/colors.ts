@@ -1,0 +1,16 @@
+export const colors = {
+  ink: "#081832",
+  deepSea: "#0A1733",
+  midnight: "#151748",
+  starPurple: "#4B3F8F",
+  duskPink: "#B98AA8",
+  warmStar: "#FFE27A",
+  warmStarSoft: "#FFF4BF",
+  foam: "#F7FBFF",
+  paper: "#FFFDF7",
+  paperLine: "rgba(21, 31, 54, 0.16)",
+  mutedText: "rgba(255, 255, 255, 0.72)",
+  text: "#18233B",
+  textMuted: "#6B7280",
+  danger: "#E86A6A",
+};
