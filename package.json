@@ -6,10 +6,15 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "export:android": "expo export --platform android --output-dir dist-check",
+    "export:ios": "expo export --platform ios --output-dir dist-check-ios"
   },
   "dependencies": {
     "expo": "~54.0.33",
+    "expo-audio": "^1.0.15",
+    "expo-audio": "~1.1.1",
     "expo-constants": "~18.0.13",
     "expo-haptics": "~15.0.8",
     "expo-linear-gradient": "~15.0.8",

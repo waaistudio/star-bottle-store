@@ -2,6 +2,7 @@
   "expo": {
     "name": "星海回音 Starry Echo",
     "slug": "star-bottle-app",
+    "owner": "waaistudio",
     "scheme": "starbottle",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -14,9 +15,16 @@
       "backgroundColor": "#0A1733"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.waaistudio.starbottle",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.waaistudio.starbottle",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0A1733"
@@ -28,7 +36,8 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-audio"
     ]
   }
 }

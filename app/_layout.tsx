@@ -24,6 +24,31 @@ export default function RootLayout() {
             headerTitleStyle: { color: "#F9E8AE" },
           }}
         />
+        <Stack.Screen
+          name="read-reply"
+          options={{
+            title: "回覆水瓶",
+            presentation: "modal",
+            headerBackTitle: "海岸",
+            headerTitleStyle: { color: "#F9E8AE" },
+          }}
+        />
+        <Stack.Screen
+          name="inbox"
+          options={{
+            title: "星海信箱",
+            headerBackTitle: "海岸",
+            headerTitleStyle: { color: "#F9E8AE" },
+          }}
+        />
+        <Stack.Screen
+          name="settings"
+          options={{
+            title: "安全與帳號",
+            headerBackTitle: "信箱",
+            headerTitleStyle: { color: "#F9E8AE" },
+          }}
+        />
       </Stack>
     </StarBottleProvider>
   );

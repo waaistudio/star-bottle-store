@@ -4,6 +4,8 @@ export type BottleStatus = "drifting" | "picked" | "replied" | "archived";
 
 export type ReplyItemType = "text" | "hug" | "tea" | "pat" | "star_bottle";
 
+export type ReportReason = "harassment" | "self_harm" | "spam" | "unsafe" | "other";
+
 export type User = {
   uid: string;
   displayName: string;
@@ -28,5 +30,15 @@ export type Reply = {
   receiverId: string;
   message: string;
   itemType: ReplyItemType;
+  timestamp: string;
+  thanked: boolean;
+};
+
+export type SafetyReport = {
+  id: string;
+  targetType: "bottle" | "reply" | "user";
+  targetId: string;
+  reporterId: string;
+  reason: ReportReason;
   timestamp: string;
 };

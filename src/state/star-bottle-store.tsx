@@ -1,11 +1,12 @@
 import React, { createContext, useMemo, useReducer } from "react";
 
-import type { Bottle, Reply, User } from "@/types/models";
+import type { Bottle, Reply, ReplyItemType, SafetyReport, User } from "@/types/models";
 
 type StarBottleState = {
   user: User;
   bottles: Bottle[];
   replies: Reply[];
+  reports: SafetyReport[];
 };
 
 type AddBottlePayload = {
@@ -15,10 +16,16 @@ type AddBottlePayload = {
 
 type StarBottleAction =
   | { type: "addBottle"; payload: AddBottlePayload }
+  | { type: "replyToBottle"; payload: { bottleId: string; message: string; itemType: ReplyItemType } }
+  | { type: "sendStarlight"; payload: { replyId: string } }
+  | { type: "reportBottle"; payload: { bottleId: string } }
   | { type: "markInboxRead" };
 
 type StarBottleContextValue = StarBottleState & {
   addBottle: (payload: AddBottlePayload) => void;
+  replyToBottle: (payload: { bottleId: string; message: string; itemType: ReplyItemType }) => void;
+  sendStarlight: (replyId: string) => void;
+  reportBottle: (bottleId: string) => void;
   markInboxRead: () => void;
 };
 
@@ -41,7 +48,27 @@ const initialState: StarBottleState = {
       status: "drifting",
     },
   ],
-  replies: [],
+  replies: [
+    {
+      id: "reply-warm-tea",
+      bottleId: "bottle-demo-owned",
+      receiverId: "kind-stranger-1",
+      message: "你已經很努力了。今晚先讓自己好好休息，明天再慢慢整理也可以。",
+      itemType: "tea",
+      timestamp: new Date(Date.now() - 1000 * 60 * 32).toISOString(),
+      thanked: false,
+    },
+    {
+      id: "reply-soft-hug",
+      bottleId: "bottle-demo-owned",
+      receiverId: "kind-stranger-2",
+      message: "送上一個安靜的擁抱。你不是一個人，海的這邊有人聽見你。",
+      itemType: "hug",
+      timestamp: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
+      thanked: true,
+    },
+  ],
+  reports: [],
 };
 
 const StarBottleContext = createContext<StarBottleContextValue | null>(null);
@@ -63,7 +90,65 @@ function reducer(state: StarBottleState, action: StarBottleAction): StarBottleSt
         bottles: [bottle, ...state.bottles],
       };
     }
+    case "replyToBottle": {
+      const reply: Reply = {
+        id: `reply-${Date.now()}`,
+        bottleId: action.payload.bottleId,
+        receiverId: state.user.uid,
+        message: action.payload.message,
+        itemType: action.payload.itemType,
+        timestamp: new Date().toISOString(),
+        thanked: false,
+      };
+
+      return {
+        ...state,
+        bottles: state.bottles.map((bottle) =>
+          bottle.id === action.payload.bottleId ? { ...bottle, status: "replied" } : bottle,
+        ),
+        replies: [reply, ...state.replies],
+      };
+    }
+    case "sendStarlight":
+      if (state.user.starFragments <= 0 || state.replies.some((reply) => reply.id === action.payload.replyId && reply.thanked)) {
+        return state;
+      }
+
+      return {
+        ...state,
+        user: {
+          ...state.user,
+          points: state.user.points + 1,
+          starFragments: Math.max(0, state.user.starFragments - 1),
+          energyLevel: state.user.points + 1 >= 50 ? "beacon" : state.user.energyLevel,
+        },
+        replies: state.replies.map((reply) =>
+          reply.id === action.payload.replyId ? { ...reply, thanked: true } : reply,
+        ),
+      };
+    case "reportBottle": {
+      const report: SafetyReport = {
+        id: `report-${Date.now()}`,
+        targetType: "bottle",
+        targetId: action.payload.bottleId,
+        reporterId: state.user.uid,
+        reason: "unsafe",
+        timestamp: new Date().toISOString(),
+      };
+
+      return {
+        ...state,
+        bottles: state.bottles.map((bottle) =>
+          bottle.id === action.payload.bottleId ? { ...bottle, status: "archived" } : bottle,
+        ),
+        reports: [report, ...state.reports],
+      };
+    }
     case "markInboxRead":
+      if (state.user.unreadReplies === 0) {
+        return state;
+      }
+
       return {
         ...state,
         user: {
@@ -83,6 +168,9 @@ export function StarBottleProvider({ children }: { children: React.ReactNode }) 
     () => ({
       ...state,
       addBottle: (payload) => dispatch({ type: "addBottle", payload }),
+      replyToBottle: (payload) => dispatch({ type: "replyToBottle", payload }),
+      sendStarlight: (replyId) => dispatch({ type: "sendStarlight", payload: { replyId } }),
+      reportBottle: (bottleId) => dispatch({ type: "reportBottle", payload: { bottleId } }),
       markInboxRead: () => dispatch({ type: "markInboxRead" }),
     }),
     [state],

@@ -1,10 +1,12 @@
 import React, { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Link } from "expo-router";
+import { Link, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { BottleWidget } from "@/components/bottle-widget";
+import { BottomNav } from "@/components/bottom-nav";
 import { OceanBackground } from "@/components/ocean-background";
+import { WhiteNoiseToggle } from "@/components/white-noise-toggle";
 import { colors } from "@/theme/colors";
 import { useStarBottleStore } from "@/state/star-bottle-store";
 
@@ -23,8 +25,9 @@ export default function HomeBeachScreen() {
   return (
     <OceanBackground>
       <SafeAreaView style={styles.safeArea}>
+        <WhiteNoiseToggle />
         <View style={styles.mailWrap}>
-          <Pressable accessibilityLabel="我的信箱" style={styles.mailButton}>
+          <Pressable accessibilityLabel="我的信箱" onPress={() => router.push("/inbox")} style={styles.mailButton}>
             <Text style={styles.mailIcon}>✉</Text>
             {user.unreadReplies > 0 ? <View style={styles.unreadDot} /> : null}
           </Pressable>
@@ -44,16 +47,16 @@ export default function HomeBeachScreen() {
             top={layout.top}
             scale={layout.scale}
             label={index === bottleLayout.length - 1 ? "未知的水瓶" : ""}
+            onPress={() => {
+              const bottle = driftingBottles[index] ?? driftingBottles[0];
+              if (bottle) {
+                router.push({ pathname: "/read-reply", params: { bottleId: bottle.id } });
+              }
+            }}
           />
         ))}
 
-        <View style={styles.bottomNav}>
-          <Text style={styles.navItemActive}>⌂</Text>
-          <Text style={styles.navItem}>▤</Text>
-          <Text style={styles.navItem}>♥</Text>
-          <Text style={styles.navItem}>✉</Text>
-          <Text style={styles.navItem}>●</Text>
-        </View>
+        <BottomNav active="home" />
 
         <Link href="/compose" asChild>
           <Pressable accessibilityRole="button" style={styles.fab}>
@@ -131,28 +134,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     textAlign: "center",
     marginTop: 10,
-  },
-  bottomNav: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 78,
-    paddingHorizontal: 34,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "rgba(8, 24, 50, 0.92)",
-  },
-  navItemActive: {
-    color: colors.foam,
-    fontSize: 30,
-    fontWeight: "900",
-  },
-  navItem: {
-    color: "rgba(255, 255, 255, 0.55)",
-    fontSize: 26,
-    fontWeight: "800",
   },
   fab: {
     position: "absolute",

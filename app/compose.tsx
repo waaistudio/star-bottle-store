@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BottleWidget } from "@/components/bottle-widget";
 import { OceanBackground } from "@/components/ocean-background";
 import { TagChip } from "@/components/tag-chip";
+import { moderateBottleDraft } from "@/services/moderation-service";
 import { useStarBottleStore } from "@/state/star-bottle-store";
 import { colors } from "@/theme/colors";
 
@@ -27,6 +28,7 @@ export default function ComposeScreen() {
   const [content, setContent] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>(["職場"]);
   const [isSending, setIsSending] = useState(false);
+  const [safetyMessage, setSafetyMessage] = useState<string | null>(null);
   const sendProgress = useRef(new Animated.Value(0)).current;
   const paperLines = useMemo(() => Array.from({ length: 7 }, (_, index) => index), []);
   const canSend = content.trim().length > 0 && !isSending;
@@ -42,6 +44,14 @@ export default function ComposeScreen() {
       return;
     }
 
+    const moderation = await moderateBottleDraft(content);
+    if (!moderation.allowed) {
+      setSafetyMessage(moderation.userMessage ?? "這段內容暫時無法送出。");
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => undefined);
+      return;
+    }
+
+    setSafetyMessage(null);
     setIsSending(true);
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
     addBottle({ content: content.trim(), tags: selectedTags });
@@ -76,7 +86,12 @@ export default function ComposeScreen() {
                 ))}
                 <TextInput
                   value={content}
-                  onChangeText={setContent}
+                  onChangeText={(text) => {
+                    setContent(text);
+                    if (safetyMessage) {
+                      setSafetyMessage(null);
+                    }
+                  }}
                   maxLength={MAX_CONTENT_LENGTH}
                   multiline
                   placeholder="把今天沒有說出口的話，輕輕放進瓶裡。"
@@ -102,6 +117,8 @@ export default function ComposeScreen() {
                   ))}
                 </View>
               </View>
+
+              {safetyMessage ? <Text style={styles.safetyMessage}>{safetyMessage}</Text> : null}
             </View>
 
             <Pressable
@@ -199,6 +216,15 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 22,
     fontWeight: "900",
+  },
+  safetyMessage: {
+    color: "#8A3D3D",
+    backgroundColor: "rgba(232, 106, 106, 0.12)",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: "800",
   },
   tagGrid: {
     flexDirection: "row",
