@@ -7,6 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNav } from "@/components/bottom-nav";
 import { OceanBackground } from "@/components/ocean-background";
 import { PremiumButton } from "@/components/premium-button";
+import { getDisabledFeatureCopy } from "@/config/features";
 import { useStarBottleStore } from "@/state/star-bottle-store";
 import { colors } from "@/theme/colors";
 import type { EnergyLevel, ReplyItemType } from "@/types/models";
@@ -63,7 +64,7 @@ export default function InboxScreen() {
             </View>
           </View>
 
-          <PremiumButton title="兌換實體溫暖（解憂禮包）" subtitle="第 3 階段開放：物流、庫存、退款與客服" disabled />
+          <PremiumButton title="兌換實體溫暖（解憂禮包）" subtitle={getDisabledFeatureCopy("physicalFulfillment")} disabled />
 
           <Pressable accessibilityRole="button" onPress={() => router.push("/settings")} style={styles.settingsButton}>
             <Text style={styles.settingsTitle}>安全與帳號</Text>

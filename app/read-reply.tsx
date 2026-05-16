@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { OceanBackground } from "@/components/ocean-background";
 import { PremiumButton } from "@/components/premium-button";
+import { getDisabledFeatureCopy } from "@/config/features";
 import { useStarBottleStore } from "@/state/star-bottle-store";
 import { colors } from "@/theme/colors";
 import type { ReplyItemType } from "@/types/models";
@@ -122,7 +123,7 @@ export default function ReadReplyScreen() {
               ))}
             </View>
 
-            <PremiumButton title="購買並送出星星瓶" subtitle="第 2 階段開放：平台內購與虛擬祝福" disabled />
+            <PremiumButton title="購買並送出星星瓶" subtitle={getDisabledFeatureCopy("virtualCommerce")} disabled />
 
             <Pressable
               accessibilityRole="button"

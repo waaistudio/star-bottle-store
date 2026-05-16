@@ -1,3 +1,5 @@
+import { featureFlags } from "@/config/features";
+
 export type VirtualProductId = "star_bottle_small" | "star_fragments_pack";
 
 export type PurchaseResult = {
@@ -13,5 +15,5 @@ export async function purchaseVirtualKindness(productId: VirtualProductId): Prom
 }
 
 export function isVirtualCommerceEnabled() {
-  return false;
+  return featureFlags.virtualCommerce;
 }
