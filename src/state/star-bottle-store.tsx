@@ -1,12 +1,20 @@
-import React, { createContext, useMemo, useReducer } from "react";
+import React, { createContext, useCallback, useEffect, useMemo, useReducer } from "react";
 
+import { ensureAnonymousUser } from "@/firebase/client";
+import { isFirebaseConfigured } from "@/firebase/config";
+import { createMockBottleService } from "@/services/bottle-service";
+import { createFirebaseBottleService } from "@/services/firebase-bottle-service";
 import type { Bottle, Reply, ReplyItemType, SafetyReport, User } from "@/types/models";
+
+type BackendStatus = "local" | "connecting" | "firebase-ready" | "firebase-error";
 
 type StarBottleState = {
   user: User;
   bottles: Bottle[];
   replies: Reply[];
   reports: SafetyReport[];
+  backendStatus: BackendStatus;
+  backendMessage?: string;
 };
 
 type AddBottlePayload = {
@@ -15,17 +23,19 @@ type AddBottlePayload = {
 };
 
 type StarBottleAction =
-  | { type: "addBottle"; payload: AddBottlePayload }
-  | { type: "replyToBottle"; payload: { bottleId: string; message: string; itemType: ReplyItemType } }
+  | { type: "addBottle"; payload: Bottle }
+  | { type: "replyToBottle"; payload: Reply }
   | { type: "sendStarlight"; payload: { replyId: string } }
   | { type: "reportBottle"; payload: { bottleId: string } }
-  | { type: "markInboxRead" };
+  | { type: "markInboxRead" }
+  | { type: "setCurrentUser"; payload: { uid: string } }
+  | { type: "setBackendStatus"; payload: { backendStatus: BackendStatus; backendMessage?: string } };
 
 type StarBottleContextValue = StarBottleState & {
-  addBottle: (payload: AddBottlePayload) => void;
-  replyToBottle: (payload: { bottleId: string; message: string; itemType: ReplyItemType }) => void;
+  addBottle: (payload: AddBottlePayload) => Promise<void>;
+  replyToBottle: (payload: { bottleId: string; message: string; itemType: ReplyItemType }) => Promise<void>;
   sendStarlight: (replyId: string) => void;
-  reportBottle: (bottleId: string) => void;
+  reportBottle: (bottleId: string) => Promise<void>;
   markInboxRead: () => void;
 };
 
@@ -69,6 +79,7 @@ const initialState: StarBottleState = {
     },
   ],
   reports: [],
+  backendStatus: isFirebaseConfigured() ? "connecting" : "local",
 };
 
 const StarBottleContext = createContext<StarBottleContextValue | null>(null);
@@ -76,37 +87,18 @@ const StarBottleContext = createContext<StarBottleContextValue | null>(null);
 function reducer(state: StarBottleState, action: StarBottleAction): StarBottleState {
   switch (action.type) {
     case "addBottle": {
-      const bottle: Bottle = {
-        id: `bottle-${Date.now()}`,
-        senderId: state.user.uid,
-        content: action.payload.content,
-        tags: action.payload.tags,
-        timestamp: new Date().toISOString(),
-        status: "drifting",
-      };
-
       return {
         ...state,
-        bottles: [bottle, ...state.bottles],
+        bottles: [action.payload, ...state.bottles],
       };
     }
     case "replyToBottle": {
-      const reply: Reply = {
-        id: `reply-${Date.now()}`,
-        bottleId: action.payload.bottleId,
-        receiverId: state.user.uid,
-        message: action.payload.message,
-        itemType: action.payload.itemType,
-        timestamp: new Date().toISOString(),
-        thanked: false,
-      };
-
       return {
         ...state,
         bottles: state.bottles.map((bottle) =>
           bottle.id === action.payload.bottleId ? { ...bottle, status: "replied" } : bottle,
         ),
-        replies: [reply, ...state.replies],
+        replies: [action.payload, ...state.replies],
       };
     }
     case "sendStarlight":
@@ -156,6 +148,20 @@ function reducer(state: StarBottleState, action: StarBottleAction): StarBottleSt
           unreadReplies: 0,
         },
       };
+    case "setCurrentUser":
+      return {
+        ...state,
+        user: {
+          ...state.user,
+          uid: action.payload.uid,
+        },
+      };
+    case "setBackendStatus":
+      return {
+        ...state,
+        backendStatus: action.payload.backendStatus,
+        backendMessage: action.payload.backendMessage,
+      };
     default:
       return state;
   }
@@ -163,17 +169,135 @@ function reducer(state: StarBottleState, action: StarBottleAction): StarBottleSt
 
 export function StarBottleProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const firebaseService = useMemo(() => createFirebaseBottleService(), []);
+  const fallbackService = useMemo(() => createMockBottleService(), []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function connectFirebase() {
+      if (!firebaseService) {
+        dispatch({ type: "setBackendStatus", payload: { backendStatus: "local" } });
+        return;
+      }
+
+      dispatch({ type: "setBackendStatus", payload: { backendStatus: "connecting" } });
+
+      try {
+        const user = await ensureAnonymousUser();
+        if (!isMounted || !user) {
+          return;
+        }
+
+        dispatch({ type: "setCurrentUser", payload: { uid: user.uid } });
+        dispatch({ type: "setBackendStatus", payload: { backendStatus: "firebase-ready" } });
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        dispatch({
+          type: "setBackendStatus",
+          payload: {
+            backendStatus: "firebase-error",
+            backendMessage: error instanceof Error ? error.message : "Firebase connection failed.",
+          },
+        });
+      }
+    }
+
+    connectFirebase();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [firebaseService]);
+
+  const addBottle = useCallback(
+    async (payload: AddBottlePayload) => {
+      try {
+        const bottle = firebaseService
+          ? await firebaseService.createBottle(payload)
+          : await fallbackService.createBottle(payload);
+        dispatch({ type: "addBottle", payload: bottle });
+      } catch (error) {
+        const bottle = await fallbackService.createBottle(payload);
+        dispatch({ type: "addBottle", payload: bottle });
+        dispatch({
+          type: "setBackendStatus",
+          payload: {
+            backendStatus: "firebase-error",
+            backendMessage: error instanceof Error ? error.message : "Bottle saved locally.",
+          },
+        });
+      }
+    },
+    [fallbackService, firebaseService],
+  );
+
+  const replyToBottle = useCallback(
+    async (payload: { bottleId: string; message: string; itemType: ReplyItemType }) => {
+      try {
+        const reply = firebaseService
+          ? await firebaseService.replyToBottle(payload)
+          : await fallbackService.replyToBottle(payload);
+        dispatch({ type: "replyToBottle", payload: reply });
+      } catch (error) {
+        const reply = await fallbackService.replyToBottle(payload);
+        dispatch({ type: "replyToBottle", payload: reply });
+        dispatch({
+          type: "setBackendStatus",
+          payload: {
+            backendStatus: "firebase-error",
+            backendMessage: error instanceof Error ? error.message : "Reply saved locally.",
+          },
+        });
+      }
+    },
+    [fallbackService, firebaseService],
+  );
+
+  const reportBottle = useCallback(
+    async (bottleId: string) => {
+      try {
+        if (firebaseService) {
+          await firebaseService.reportBottle(bottleId);
+        } else {
+          await fallbackService.reportBottle(bottleId);
+        }
+      } catch (error) {
+        dispatch({
+          type: "setBackendStatus",
+          payload: {
+            backendStatus: "firebase-error",
+            backendMessage: error instanceof Error ? error.message : "Report saved locally.",
+          },
+        });
+      } finally {
+        dispatch({ type: "reportBottle", payload: { bottleId } });
+      }
+    },
+    [fallbackService, firebaseService],
+  );
+
+  const sendStarlight = useCallback((replyId: string) => {
+    dispatch({ type: "sendStarlight", payload: { replyId } });
+  }, []);
+
+  const markInboxRead = useCallback(() => {
+    dispatch({ type: "markInboxRead" });
+  }, []);
 
   const value = useMemo<StarBottleContextValue>(
     () => ({
       ...state,
-      addBottle: (payload) => dispatch({ type: "addBottle", payload }),
-      replyToBottle: (payload) => dispatch({ type: "replyToBottle", payload }),
-      sendStarlight: (replyId) => dispatch({ type: "sendStarlight", payload: { replyId } }),
-      reportBottle: (bottleId) => dispatch({ type: "reportBottle", payload: { bottleId } }),
-      markInboxRead: () => dispatch({ type: "markInboxRead" }),
+      addBottle,
+      replyToBottle,
+      sendStarlight,
+      reportBottle,
+      markInboxRead,
     }),
-    [state],
+    [addBottle, markInboxRead, replyToBottle, reportBottle, sendStarlight, state],
   );
 
   return <StarBottleContext.Provider value={value}>{children}</StarBottleContext.Provider>;

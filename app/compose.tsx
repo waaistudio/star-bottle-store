@@ -54,7 +54,7 @@ export default function ComposeScreen() {
     setSafetyMessage(null);
     setIsSending(true);
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
-    addBottle({ content: content.trim(), tags: selectedTags });
+    await addBottle({ content: content.trim(), tags: selectedTags });
 
     Animated.timing(sendProgress, {
       toValue: 1,

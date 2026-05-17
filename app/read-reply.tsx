@@ -35,7 +35,7 @@ export default function ReadReplyScreen() {
     }
 
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
-    replyToBottle({ bottleId: bottle.id, message: finalMessage, itemType });
+    await replyToBottle({ bottleId: bottle.id, message: finalMessage, itemType });
     router.replace("/");
   };
 
@@ -45,7 +45,7 @@ export default function ReadReplyScreen() {
     }
 
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => undefined);
-    reportBottle(bottle.id);
+    await reportBottle(bottle.id);
     router.replace("/");
   };
 

@@ -8,7 +8,7 @@ StarBottleApp is an anonymous, warm, cross-platform social app where people can 
 - React Native 0.81
 - TypeScript
 - Expo Router
-- Local reducer-based state, shaped for Firebase/API replacement later
+- Local reducer state with Firebase Auth/Firestore write-through when configured
 
 ## Implemented
 
@@ -16,6 +16,7 @@ StarBottleApp is an anonymous, warm, cross-platform social app where people can 
 - Screen 2: Compose, with paper-like writing UI, 300-character counter, tag chips, and bottle-send feedback animation.
 - Shared UI components for ocean background, bottle widgets, and tags.
 - Initial data models for `User`, `Bottle`, and `Reply`.
+- Firebase Web config support, anonymous auth bootstrap, Firestore write-through for bottles/replies/reports, and local fallback when Firebase is unavailable.
 
 ## Roadmap To Store-Ready App
 
@@ -29,8 +30,8 @@ StarBottleApp is an anonymous, warm, cross-platform social app where people can 
 
 ### Phase 2: Backend, Safety, And Paid Virtual Items
 
-- Add anonymous auth and user profile persistence.
-- Add Firestore/API collections for users, bottles, replies, reports, and moderation state.
+- Finish Firebase Console/CLI enablement for Anonymous Auth and Firestore.
+- Add user profile persistence and Firestore snapshot subscriptions.
 - Add random bottle dispatch logic.
 - Add 24-hour AI lighthouse fallback job.
 - Add text moderation, rate limits, report/block workflows, and crisis-content handling.
