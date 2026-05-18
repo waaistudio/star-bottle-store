@@ -27,6 +27,7 @@ type StarBottleAction =
   | { type: "replyToBottle"; payload: Reply }
   | { type: "sendStarlight"; payload: { replyId: string } }
   | { type: "reportBottle"; payload: { bottleId: string } }
+  | { type: "reportReply"; payload: { replyId: string } }
   | { type: "markInboxRead" }
   | { type: "setCurrentUser"; payload: { uid: string } }
   | { type: "setBackendStatus"; payload: { backendStatus: BackendStatus; backendMessage?: string } };
@@ -36,6 +37,7 @@ type StarBottleContextValue = StarBottleState & {
   replyToBottle: (payload: { bottleId: string; message: string; itemType: ReplyItemType }) => Promise<void>;
   sendStarlight: (replyId: string) => void;
   reportBottle: (bottleId: string) => Promise<void>;
+  reportReply: (replyId: string) => Promise<void>;
   markInboxRead: () => void;
 };
 
@@ -133,6 +135,25 @@ function reducer(state: StarBottleState, action: StarBottleAction): StarBottleSt
         bottles: state.bottles.map((bottle) =>
           bottle.id === action.payload.bottleId ? { ...bottle, status: "archived" } : bottle,
         ),
+        reports: [report, ...state.reports],
+      };
+    }
+    case "reportReply": {
+      if (state.reports.some((report) => report.targetType === "reply" && report.targetId === action.payload.replyId)) {
+        return state;
+      }
+
+      const report: SafetyReport = {
+        id: `report-${Date.now()}`,
+        targetType: "reply",
+        targetId: action.payload.replyId,
+        reporterId: state.user.uid,
+        reason: "unsafe",
+        timestamp: new Date().toISOString(),
+      };
+
+      return {
+        ...state,
         reports: [report, ...state.reports],
       };
     }
@@ -280,6 +301,29 @@ export function StarBottleProvider({ children }: { children: React.ReactNode }) 
     [fallbackService, firebaseService],
   );
 
+  const reportReply = useCallback(
+    async (replyId: string) => {
+      try {
+        if (firebaseService) {
+          await firebaseService.reportReply(replyId);
+        } else {
+          await fallbackService.reportReply(replyId);
+        }
+      } catch (error) {
+        dispatch({
+          type: "setBackendStatus",
+          payload: {
+            backendStatus: "firebase-error",
+            backendMessage: error instanceof Error ? error.message : "Report saved locally.",
+          },
+        });
+      } finally {
+        dispatch({ type: "reportReply", payload: { replyId } });
+      }
+    },
+    [fallbackService, firebaseService],
+  );
+
   const sendStarlight = useCallback((replyId: string) => {
     dispatch({ type: "sendStarlight", payload: { replyId } });
   }, []);
@@ -295,9 +339,10 @@ export function StarBottleProvider({ children }: { children: React.ReactNode }) 
       replyToBottle,
       sendStarlight,
       reportBottle,
+      reportReply,
       markInboxRead,
     }),
-    [addBottle, markInboxRead, replyToBottle, reportBottle, sendStarlight, state],
+    [addBottle, markInboxRead, replyToBottle, reportBottle, reportReply, sendStarlight, state],
   );
 
   return <StarBottleContext.Provider value={value}>{children}</StarBottleContext.Provider>;

@@ -15,6 +15,7 @@ export type BottleService = {
   createBottle(input: CreateBottleInput): Promise<Bottle>;
   replyToBottle(input: ReplyToBottleInput): Promise<Reply>;
   reportBottle(bottleId: string): Promise<void>;
+  reportReply(replyId: string): Promise<void>;
 };
 
 export function createMockBottleService(): BottleService {
@@ -41,6 +42,9 @@ export function createMockBottleService(): BottleService {
       };
     },
     async reportBottle() {
+      return undefined;
+    },
+    async reportReply() {
       return undefined;
     },
   };

@@ -96,5 +96,21 @@ export function createFirebaseBottleService(): BottleService | null {
         updatedAt: serverTimestamp(),
       });
     },
+    async reportReply(replyId: string): Promise<void> {
+      const user = await ensureAnonymousUser();
+
+      if (!user) {
+        throw new Error("Firebase is not configured.");
+      }
+
+      await addDoc(collection(client.db, "reports"), {
+        reporterId: user.uid,
+        targetType: "reply",
+        targetId: replyId,
+        reason: "unsafe",
+        status: "open",
+        createdAt: serverTimestamp(),
+      });
+    },
   };
 }

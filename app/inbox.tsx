@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -27,8 +27,12 @@ const itemLabels: Record<ReplyItemType, string> = {
 };
 
 export default function InboxScreen() {
-  const { user, replies, sendStarlight, markInboxRead } = useStarBottleStore();
+  const { user, replies, reports, sendStarlight, reportReply, markInboxRead } = useStarBottleStore();
   const level = levelLabels[user.energyLevel];
+  const reportedReplyIds = useMemo(
+    () => new Set(reports.filter((report) => report.targetType === "reply").map((report) => report.targetId)),
+    [reports],
+  );
 
   useEffect(() => {
     markInboxRead();
@@ -37,6 +41,11 @@ export default function InboxScreen() {
   const thankReply = async (replyId: string) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
     sendStarlight(replyId);
+  };
+
+  const submitReplyReport = async (replyId: string) => {
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => undefined);
+    await reportReply(replyId);
   };
 
   return (
@@ -106,6 +115,15 @@ export default function InboxScreen() {
                     style={[styles.thankButton, reply.thanked ? styles.thankButtonDone : null]}
                   >
                     <Text style={styles.thankButtonText}>{reply.thanked ? "已送出星光" : "送出星光"}</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="檢舉這則回覆"
+                    disabled={reportedReplyIds.has(reply.id)}
+                    onPress={() => submitReplyReport(reply.id)}
+                    style={[styles.reportReplyButton, reportedReplyIds.has(reply.id) ? styles.reportReplyButtonDone : null]}
+                  >
+                    <Text style={styles.reportReplyText}>{reportedReplyIds.has(reply.id) ? "已送交審核" : "檢舉這則回覆"}</Text>
                   </Pressable>
                 </View>
               </View>
@@ -324,5 +342,18 @@ const styles = StyleSheet.create({
     color: colors.warmStarSoft,
     fontSize: 13,
     fontWeight: "900",
+  },
+  reportReplyButton: {
+    alignSelf: "flex-start",
+    minHeight: 30,
+    justifyContent: "center",
+  },
+  reportReplyButtonDone: {
+    opacity: 0.64,
+  },
+  reportReplyText: {
+    color: colors.danger,
+    fontSize: 12,
+    fontWeight: "800",
   },
 });
